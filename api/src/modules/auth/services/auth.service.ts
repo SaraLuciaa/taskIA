@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException, ConflictException } from '@nestjs/common';
-import { SupabaseService } from './supabase.service';
+import { SupabaseService } from '../../../supabase.service';
 
 function isValidEmail(email: string): boolean {
   // Validación básica de email
