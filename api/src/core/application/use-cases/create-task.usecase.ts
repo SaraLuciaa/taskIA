@@ -6,24 +6,26 @@ export class CreateTaskUseCase {
 
   async execute(data: {
     userId: string;
-    nombre: string;
-    descripcion?: string;
-    tiempo_estimado: number;
-    fecha_finalizacion?: string;
-    prioridad?: 'baja' | 'media' | 'alta' | 'alta';
+    name: string;
+    description?: string;
+    estimated_duration: number;
+    due_date?: string;
+    priority?: 'baja' | 'media' | 'alta';
   }): Promise<Task> {
     const task = new Task(
       crypto.randomUUID(),
       data.userId,
-      data.nombre,
-      data.descripcion ?? '',
+      data.name,
+      data.description ?? '',
       new Date(),
-      data.tiempo_estimado, // minutos
-      data.fecha_finalizacion ? new Date(data.fecha_finalizacion) : null,
-      data.prioridad ?? 'media',
+      data.estimated_duration,
+      data.due_date ? new Date(data.due_date) : null,
+      null, // actualCompletionDate
+      data.priority ?? 'media',
       'pendiente',
-      null, // motivoCancelacion
-      null  // fechaCancelacion
+      null, // cancellationReason
+      null, // cancelledAt
+      null  // originalStatus
     );
     return this.taskRepo.create(task);
   }

@@ -1,0 +1,360 @@
+{
+  "info": {
+    "_postman_id": "d1d6e44f-c05e-4aa0-80ae-324c1c38951b",
+    "name": "Tareas CRUD y Estados",
+    "description": "Colecci\u00f3n completa para probar CRUD de tareas con estados, validaciones y pruebas negativas.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Crear tarea (pendiente)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Tarea de prueba\",\n  \"description\": \"Test CRUD\",\n  \"estimated_duration\": 60,\n  \"due_date\": \"{{fecha_futura}}\",\n  \"priority\": \"media\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/tasks",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tasks"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "var json = pm.response.json();",
+              "pm.environment.set(\"task_id\", json.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Actualizar a en_progreso (pendiente \u2192 en_progreso)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{ \"status\": \"en_progreso\" }"
+        },
+        "url": {
+          "raw": "{{base_url}}/tasks/{{task_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tasks",
+            "{{task_id}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.response.to.have.status(200);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Actualizar a finalizada (en_progreso \u2192 finalizada)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{ \"status\": \"finalizada\" }"
+        },
+        "url": {
+          "raw": "{{base_url}}/tasks/{{task_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tasks",
+            "{{task_id}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.response.to.have.status(200);",
+              "var json = pm.response.json();",
+              "pm.environment.set(\"task_id_finalizada\", json.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Actualizar a cancelada (en_progreso \u2192 cancelada, sin motivo) [Negativo]",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{ \"status\": \"cancelada\" }"
+        },
+        "url": {
+          "raw": "{{base_url}}/tasks/{{task_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tasks",
+            "{{task_id}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.response.to.have.status(400);",
+              "pm.expect(pm.response.text()).to.include(\"motivo de cancelaci\u00f3n\");"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Actualizar a cancelada (en_progreso \u2192 cancelada, con motivo)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{ \"status\": \"cancelada\", \"cancellation_reason\": \"No es necesaria\" }"
+        },
+        "url": {
+          "raw": "{{base_url}}/tasks/{{task_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tasks",
+            "{{task_id}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.response.to.have.status(200);",
+              "var json = pm.response.json();",
+              "pm.environment.set(\"task_id_cancelada\", json.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reestablecer tarea cancelada a pendiente (cancelada \u2192 pendiente)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{ \"status\": \"pendiente\" }"
+        },
+        "url": {
+          "raw": "{{base_url}}/tasks/{{task_id_cancelada}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tasks",
+            "{{task_id_cancelada}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.response.to.have.status(200);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Eliminar tarea en estado pendiente (Positivo)",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/tasks/{{task_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tasks",
+            "{{task_id}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.response.to.have.status(200);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Eliminar tarea en estado finalizada (Negativo)",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/tasks/{{task_id_finalizada}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tasks",
+            "{{task_id_finalizada}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.response.to.have.status(400);",
+              "pm.expect(pm.response.text()).to.include(\"Solo puedes eliminar tareas en estado pendiente\");"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "event": [],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "fecha_futura",
+      "value": "2099-12-31T23:59:59.000Z"
+    }
+  ]
+}

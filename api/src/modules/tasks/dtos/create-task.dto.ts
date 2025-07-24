@@ -1,7 +1,7 @@
 export class CreateTaskDto {
-  nombre: string;
-  descripcion?: string;
-  tiempo_estimado: number;
-  fecha_finalizacion?: string; 
-  prioridad?: 'alta' | 'media' | 'baja';
+  name: string;
+  description?: string;
+  estimated_duration: number; // minutos
+  due_date?: string; // fecha estimada de finalización
+  priority?: 'alta' | 'media' | 'baja';
 } 

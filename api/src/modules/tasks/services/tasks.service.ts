@@ -4,31 +4,57 @@ import { CreateTaskDto } from '../dtos/create-task.dto';
 import { UpdateTaskDto } from '../dtos/update-task.dto';
 import { ITaskRepository } from '../../../core/domain/repositories/task.repository';
 import { Task } from '../../../core/domain/entities/task.entity';
+import { UpdateTaskUseCase } from '../../../core/application/use-cases/update-task.usecase';
 
 @Injectable()
 export class TasksService implements ITaskRepository {
   constructor(private readonly supabaseService: SupabaseService) {}
 
   async create(task: Task): Promise<Task> {
+    // Validación de enums
+    const validPriorities = ['alta', 'media', 'baja'];
+    const validStatuses = ['pendiente', 'en_progreso', 'finalizada', 'cancelada'];
+    if (!validPriorities.includes(task.priority)) {
+      throw new Error(`Valor de prioridad inválido: ${task.priority}. Debe ser uno de: ${validPriorities.join(', ')}`);
+    }
+    if (!validStatuses.includes(task.status)) {
+      throw new Error(`Valor de estado inválido: ${task.status}. Debe ser uno de: ${validStatuses.join(', ')}`);
+    }
+    // Log del objeto a insertar
+    const insertObj = {
+      id: task.id,
+      user_id: task.userId,
+      name: task.name,
+      description: task.description,
+      created_at: task.createdAt.toISOString(),
+      estimated_duration: task.estimatedDuration,
+      due_date: task.dueDate ? task.dueDate.toISOString() : null,
+      actual_completion_date: task.actualCompletionDate ? task.actualCompletionDate.toISOString() : null,
+      priority: task.priority,
+      status: task.status,
+      cancellation_reason: task.cancellationReason ?? null,
+      cancelled_at: task.cancelledAt ? task.cancelledAt.toISOString() : null,
+      original_status: task.originalStatus ?? null,
+    };
     const { data, error } = await this.supabaseService.client
       .from('tasks')
-      .insert([{
-        id: task.id,
-        user_id: task.userId,
-        nombre: task.nombre,
-        descripcion: task.descripcion,
-        fecha_creacion: task.fechaCreacion.toISOString(),
-        tiempo_estimado: task.tiempoEstimado,
-        fecha_finalizacion: task.fechaFinalizacion ? task.fechaFinalizacion.toISOString() : null,
-        prioridad: task.prioridad,
-        estado: task.estado,
-        motivo_cancelacion: task.motivoCancelacion ?? null,
-        fecha_cancelacion: task.fechaCancelacion ? task.fechaCancelacion.toISOString() : null,
-      }], { defaultToNull: true })
-      .select()
+      .insert([insertObj], { defaultToNull: true })
       .single();
-    if (error) throw error;
-    return this.toDomain(data);
+
+    if (error) {
+      console.error('Error de Supabase:', error);
+      throw new Error(error.message || JSON.stringify(error));
+    }
+
+    // Si data existe, retorna la tarea creada normalmente
+    if (data) return this.toDomain(data);
+
+    // Si data no existe pero no hubo error, busca la tarea por id y retórnala
+    const created = await this.findById(task.id, task.userId);
+    if (created) return created;
+
+    // Si no se encuentra, lanza un error
+    throw new Error('No se pudo crear la tarea ni encontrarla después de la inserción');
   }
 
   async findById(id: string, userId: string): Promise<Task | null> {
@@ -55,14 +81,16 @@ export class TasksService implements ITaskRepository {
     const { data, error } = await this.supabaseService.client
       .from('tasks')
       .update({
-        nombre: task.nombre,
-        descripcion: task.descripcion,
-        tiempo_estimado: task.tiempoEstimado,
-        fecha_finalizacion: task.fechaFinalizacion ? task.fechaFinalizacion.toISOString() : null,
-        prioridad: task.prioridad,
-        estado: task.estado,
-        motivo_cancelacion: task.motivoCancelacion ?? null,
-        fecha_cancelacion: task.fechaCancelacion ? task.fechaCancelacion.toISOString() : null,
+        name: task.name,
+        description: task.description,
+        estimated_duration: task.estimatedDuration,
+        due_date: task.dueDate ? task.dueDate.toISOString() : null,
+        actual_completion_date: task.actualCompletionDate ? task.actualCompletionDate.toISOString() : null,
+        priority: task.priority,
+        status: task.status,
+        cancellation_reason: task.cancellationReason ?? null,
+        cancelled_at: task.cancelledAt ? task.cancelledAt.toISOString() : null,
+        original_status: task.originalStatus ?? null,
       })
       .eq('id', task.id)
       .eq('user_id', task.userId)
@@ -73,6 +101,11 @@ export class TasksService implements ITaskRepository {
   }
 
   async delete(id: string, userId: string): Promise<void> {
+    const task = await this.findById(id, userId);
+    if (!task) throw new Error('Tarea no encontrada');
+    if (task.status !== 'pendiente') {
+      throw new Error('Solo puedes eliminar tareas en estado pendiente');
+    }
     const { error } = await this.supabaseService.client
       .from('tasks')
       .delete()
@@ -85,15 +118,17 @@ export class TasksService implements ITaskRepository {
     return new Task(
       data.id,
       data.user_id,
-      data.nombre,
-      data.descripcion,
-      new Date(data.fecha_creacion),
-      data.tiempo_estimado,
-      data.fecha_finalizacion ? new Date(data.fecha_finalizacion) : null,
-      data.prioridad,
-      data.estado,
-      data.motivo_cancelacion ?? null,
-      data.fecha_cancelacion ? new Date(data.fecha_cancelacion) : null,
+      data.name,
+      data.description,
+      new Date(data.created_at),
+      data.estimated_duration,
+      data.due_date ? new Date(data.due_date) : null,
+      data.actual_completion_date ? new Date(data.actual_completion_date) : null,
+      data.priority,
+      data.status,
+      data.cancellation_reason ?? null,
+      data.cancelled_at ? new Date(data.cancelled_at) : null,
+      data.original_status ?? null,
     );
   }
 
@@ -101,35 +136,33 @@ export class TasksService implements ITaskRepository {
     const task = new Task(
       crypto.randomUUID(),
       userId,
-      dto.nombre,
-      dto.descripcion ?? '',
+      dto.name,
+      dto.description ?? '',
       new Date(),
-      dto.tiempo_estimado,
-      dto.fecha_finalizacion ? new Date(dto.fecha_finalizacion) : null,
-      dto.prioridad ?? 'media',
+      dto.estimated_duration,
+      dto.due_date ? new Date(dto.due_date) : null,
+      null, // actualCompletionDate
+      dto.priority ?? 'media',
       'pendiente',
-      null,
-      null
+      null, // cancellationReason
+      null, // cancelledAt
+      null  // originalStatus
     );
     return this.create(task);
   }
 
   async updateFromDto(id: string, userId: string, dto: UpdateTaskDto) {
-    const existing = await this.findById(id, userId);
-    if (!existing) throw new Error('Tarea no encontrada');
-    const updated = new Task(
-      existing.id,
-      existing.userId,
-      dto.nombre ?? existing.nombre,
-      dto.descripcion ?? existing.descripcion,
-      existing.fechaCreacion,
-      dto.tiempo_estimado ?? existing.tiempoEstimado,
-      dto.fecha_finalizacion ? new Date(dto.fecha_finalizacion) : existing.fechaFinalizacion,
-      dto.prioridad ?? existing.prioridad,
-      dto.estado ?? existing.estado,
-      dto.motivo_cancelacion ?? existing.motivoCancelacion,
-      dto.fecha_cancelacion ? new Date(dto.fecha_cancelacion) : existing.fechaCancelacion
-    );
-    return this.update(updated);
+    const useCase = new UpdateTaskUseCase(this);
+    return useCase.execute({
+      id,
+      userId,
+      name: dto.name,
+      description: dto.description,
+      estimated_duration: dto.estimated_duration,
+      due_date: dto.due_date,
+      priority: dto.priority,
+      status: dto.status,
+      cancellation_reason: dto.cancellation_reason,
+    });
   }
 } 
